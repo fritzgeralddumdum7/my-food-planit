@@ -1,0 +1,40 @@
+name: frontend (Build & Deploy)
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - FE/**
+      - .github/**
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FE
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/node
+
+      - name: Set ENV Variables
+        run: cp .env.staging .env.production
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.STG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STG_AWS_ACCESS_SECRET }}
+          aws-region: us-east-1
+
+      - name: Build Static Files
+        run: yarn build
+
+      - name: Deploy
+        run: |
+          cd out
+          aws s3 sync . s3://mfp-stg --delete

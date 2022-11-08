@@ -1,0 +1,5 @@
+.selected, .selected:hover {
+  background: #F8FFF2;
+  border: 2px solid #B0DC90;
+  color: #B0DC90;
+}

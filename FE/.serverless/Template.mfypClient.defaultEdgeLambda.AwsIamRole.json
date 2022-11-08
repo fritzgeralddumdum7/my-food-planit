@@ -1,0 +1,38 @@
+{
+  "name": "zdvbvcq-c6nz2l",
+  "arn": "arn:aws:iam::367690640991:role/zdvbvcq-c6nz2l",
+  "service": [
+    "lambda.amazonaws.com",
+    "edgelambda.amazonaws.com"
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Resource": "*",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+      },
+      {
+        "Effect": "Allow",
+        "Resource": "arn:aws:s3:::zdvbvcq-7wq4wtt/*",
+        "Action": [
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+      },
+      {
+        "Effect": "Allow",
+        "Resource": "arn:aws:sqs:us-east-1:367690640991:zdvbvcq-7wq4wtt.fifo",
+        "Action": [
+          "sqs:SendMessage"
+        ]
+      }
+    ]
+  },
+  "region": "us-east-1"
+}

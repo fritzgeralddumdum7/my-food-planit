@@ -1,0 +1,121 @@
+service: laravel
+
+custom:
+  serverlessIfElse:
+    - If: '"${opt:stage}" == "staging"'
+      Set:
+        functions.web.vpc.securityGroupIds:
+          - sg-0b8bd352859553ce9
+        functions.web.vpc.subnetIds:
+          - subnet-05264f5e4687e9def
+          - subnet-07365b486f74f1aea
+          - subnet-0441b4e8925e9d584
+          - subnet-0462ea4cbd0447ffe
+          - subnet-0be40e5f82bdd2a24
+          - subnet-0d525cffdc7e61070
+        provider.environment.AWS_BUCKET: mfp-stg-assets
+        provider.iam.role.statements.Resource:
+          - arn:aws:s3:::mfp-stg-assets # the storage bucket
+          - arn:aws:s3:::mfp-stg-assets/*
+
+provider:
+  name: aws
+  # The AWS region in which to deploy (us-east-1 is the default)
+  region: us-east-1
+  # The stage of the application, e.g. dev, production, staging… ('dev' is the default)
+  stage: ${opt:stage, 'dev'}
+  timeout: 29
+  runtime: provided.al2
+  httpApi:
+    cors:
+      allowedOrigins:
+        - https://d19s1iggse0wp5.cloudfront.net
+        - https://d2qcwss3zdlp9z.cloudfront.net
+        - https://myfp-stg.tech
+        - http://localhost:3030
+        - https://d2akpr7uw5u4lf.cloudfront.net
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - "*"
+      allowCredentials: true
+      exposedResponseHeaders:
+        - Special-Response-Header
+  apiGateway:
+    binaryMediaTypes:
+      - "*/*"
+  environment:
+    MAIL_USERNAME: ${ssm:/${opt:stage}/MAIL_USERNAME}
+    MAIL_PASSWORD: ${ssm:/${opt:stage}/MAIL_PASSWORD}
+    DB_PASSWORD: ${ssm:/${opt:stage}/DB_PASSWORD}
+    AWS_BUCKET: mfp-assets
+    BREF_BINARY_RESPONSES: "1"
+  iam:
+    role:
+      statements:
+        # Allow Lambda to read and write files in the S3 buckets
+        - Effect: Allow
+          Action: s3:*
+          Resource:
+            - arn:aws:s3:::mfp-assets # the storage bucket
+            - arn:aws:s3:::mfp-assets/*
+resources:
+  Resources:
+    Storage:
+      Type: AWS::S3::Bucket
+
+package:
+  # Directories to exclude from deployment
+  patterns:
+    - "!node_modules/**"
+    - "!public/storage"
+    - "!resources/assets/**"
+    - "!storage/**"
+    - "!tests/**"
+
+functions:
+  # This function runs the Laravel website/API
+  web:
+    handler: public/index.php
+    timeout: 29 # in seconds (API Gateway has a timeout of 29 seconds)
+    layers:
+      - ${bref:layer.php-80-fpm}
+    events:
+      - httpApi: "*"
+    vpc:
+      securityGroupIds:
+        - sg-087dbaf1277063291
+      subnetIds:
+        - subnet-0b2acc40e202f22f6
+        - subnet-0d0f56a8a42fb6fcd
+        - subnet-01c8d470f875a3a96
+        - subnet-037e6783573c9507e
+        - subnet-04131eff962da819e
+        - subnet-025aba2134e404ff8
+    # environment:
+    #   SQS_QUEUE: ${construct:jobs.queueUrl}
+  # This function lets us run artisan commands in Lambda
+  artisan:
+    handler: artisan
+    timeout: 120
+    layers:
+      - ${bref:layer.php-80} # PHP
+      - ${bref:layer.console} # The "console" layer
+    events:
+      - schedule:
+          rate: rate(1 minute)
+          input: '"queue:work --sleep=3 --tries=3 --max-time=3600"'
+
+# constructs:
+#   jobs:
+#     type: queue
+#     worker:
+#       handler: worker.php
+#       layers:
+#         - ${bref:layer.php-80}
+
+plugins:
+  - ./vendor/bref/bref
+  - serverless-lift
+  - serverless-plugin-ifelse
